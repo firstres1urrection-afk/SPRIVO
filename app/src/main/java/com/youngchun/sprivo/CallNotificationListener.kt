@@ -353,7 +353,7 @@ class CallNotificationListener : NotificationListenerService() {
         reason: String,
         groupId: String,
         logId: String,
-        providerStatus: String
+        providerStatus: String, classification: String = "", classificationReason: String = "", callbackNeeded: Boolean = false, callbackStatus: String = "", autoReplySuppressed: Boolean = false false
     ) {
         val prefs = context.getSharedPreferences("sprivo", Context.MODE_PRIVATE)
         val historyJson = prefs.getString("call_history", "[]") ?: "[]"
@@ -370,7 +370,7 @@ class CallNotificationListener : NotificationListenerService() {
             put("reason", reason)
             put("groupId", groupId)
             put("logId", logId)
-            put("providerStatus", providerStatus)
+            put("providerStatus", providerStatus); put("classification", classification); put("classificationReason", classificationReason); put("callbackNeeded", callbackNeeded); put("callbackStatus", callbackStatus); put("autoReplySuppressed", autoReplySuppressed), providerStatus)
         }
 
         historyArray.put(item)
