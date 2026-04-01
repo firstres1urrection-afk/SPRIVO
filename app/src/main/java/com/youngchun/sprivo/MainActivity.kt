@@ -85,7 +85,13 @@ data class CallHistoryItem(
     val reason: String,
     val groupId: String = "",
     val logId: String = "",
-    val providerStatus: String = ""
+    val providerStatus: String = "",
+    val classification: String = "unknown",
+    val classificationReason: String = "INITIAL_DEFAULT",
+    val callbackNeeded: Boolean = true,
+    val callbackStatus: String = "todo",
+    val autoReplySuppressed: Boolean = false
+
 )
 
 data class FinalNotificationPayload(
@@ -558,7 +564,12 @@ fun loadCallHistory(context: Context): List<CallHistoryItem> {
                 reason = obj.optString("reason", ""),
                 groupId = obj.optString("groupId", ""),
                 logId = obj.optString("logId", ""),
-                providerStatus = obj.optString("providerStatus", "")
+                providerStatus = obj.optString("providerStatus", ""),
+            classification = obj.optString("classification", "unknown"),
+            classificationReason = obj.optString("classificationReason", "INITIAL_DEFAULT"),
+            callbackNeeded = obj.optBoolean("callbackNeeded", true),
+            callbackStatus = obj.optString("callbackStatus", "todo"),
+            autoReplySuppressed = obj.optBoolean("autoReplySuppressed", false)
             )
         )
     }
@@ -580,6 +591,11 @@ fun saveCallHistoryList(context: Context, items: List<CallHistoryItem>) {
             put("groupId", item.groupId)
             put("logId", item.logId)
             put("providerStatus", item.providerStatus)
+put("classification", item.classification)
+            put("classificationReason", item.classificationReason)
+            put("callbackNeeded", item.callbackNeeded)
+            put("callbackStatus", item.callbackStatus)
+            put("autoReplySuppressed", item.autoReplySuppressed)
         }
         array.put(obj)
     }
