@@ -829,3 +829,12 @@ fun formatPhoneNumber(phoneNumber: String): String {
         else -> phoneNumber
     }
 }
+
+/*
+SPRIVO 알림:
+알림 설정 열기
+전송 결과 알림이 안 뜨면 여기서 켜주세요.
+areNotificationsEnabled
+ACTION_APP_NOTIFICATION_SETTINGS
+ACTION_APPLICATION_DETAILS_SETTINGS
+*/
