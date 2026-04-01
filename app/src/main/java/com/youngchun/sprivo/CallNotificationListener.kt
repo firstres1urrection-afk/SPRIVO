@@ -346,41 +346,51 @@ class CallNotificationListener : NotificationListenerService() {
     }
 
     private fun saveCallHistory(
-        context: Context,
-        phoneNumber: String,
-        mode: String,
-        status: String,
-        reason: String,
-        groupId: String,
-        logId: String,
-        providerStatus: String, classification: String = "", classificationReason: String = "", callbackNeeded: Boolean = false, callbackStatus: String = "", autoReplySuppressed: Boolean = false false
-    ) {
-        val prefs = context.getSharedPreferences("sprivo", Context.MODE_PRIVATE)
-        val historyJson = prefs.getString("call_history", "[]") ?: "[]"
-        val historyArray = JSONArray(historyJson)
+    context: Context,
+    phoneNumber: String,
+    mode: String,
+    status: String,
+    reason: String,
+    groupId: String,
+    logId: String,
+    providerStatus: String,
+    classification: String = "unknown",
+    classificationReason: String = "INITIAL_DEFAULT",
+    callbackNeeded: Boolean = true,
+    callbackStatus: String = "todo",
+    autoReplySuppressed: Boolean = false
+) {
+    val prefs = context.getSharedPreferences("sprivo", Context.MODE_PRIVATE)
+    val historyJson = prefs.getString("call_history", "[]") ?: "[]"
+    val historyArray = JSONArray(historyJson)
 
-        val timeString =
-            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+    val timeString =
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-        val item = JSONObject().apply {
-            put("time", timeString)
-            put("phoneNumber", phoneNumber)
-            put("mode", mode)
-            put("status", status)
-            put("reason", reason)
-            put("groupId", groupId)
-            put("logId", logId)
-            put("providerStatus", providerStatus); put("classification", classification); put("classificationReason", classificationReason); put("callbackNeeded", callbackNeeded); put("callbackStatus", callbackStatus); put("autoReplySuppressed", autoReplySuppressed), providerStatus)
-        }
-
-        historyArray.put(item)
-
-        while (historyArray.length() > 50) {
-            historyArray.remove(0)
-        }
-
-        prefs.edit().putString("call_history", historyArray.toString()).apply()
+    val item = JSONObject().apply {
+        put("time", timeString)
+        put("phoneNumber", phoneNumber)
+        put("mode", mode)
+        put("status", status)
+        put("reason", reason)
+        put("groupId", groupId)
+        put("logId", logId)
+        put("providerStatus", providerStatus)
+        put("classification", classification)
+        put("classificationReason", classificationReason)
+        put("callbackNeeded", callbackNeeded)
+        put("callbackStatus", callbackStatus)
+        put("autoReplySuppressed", autoReplySuppressed)
     }
+
+    historyArray.put(item)
+
+    while (historyArray.length() > 50) {
+        historyArray.remove(0)
+    }
+
+    prefs.edit().putString("call_history", historyArray.toString()).apply()
+}
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
