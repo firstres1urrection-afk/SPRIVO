@@ -54,7 +54,7 @@ class CallNotificationListener : NotificationListenerService() {
             return
         }
 
-        val phoneNumber = extractNumber("$title $text")
+        val phoneNumber = extractNumber("$title $text") ?: resolveLatestMissedNumberFromCallLog(sbn.postTime)
         if (phoneNumber == null) {
             Log.d("SPRIVO", "번호 추출 실패")
             return
@@ -446,5 +446,36 @@ class CallNotificationListener : NotificationListenerService() {
 
             else -> phoneNumber
         }
+    }
+}
+
+private fun resolveLatestMissedNumberFromCallLog(postTime: Long, windowMs: Long = 90_000L): String? {
+    if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CALL_LOG)
+        != android.content.pm.PackageManager.PERMISSION_GRANTED
+    ) {
+        Log.d("SPRIVO", "READ_CALL_LOG 권한 없음 - CallLog fallback 불가")
+        return null
+    }
+
+    return try {
+        contentResolver.query(
+            android.provider.CallLog.Calls.CONTENT_URI,
+            arrayOf(
+                android.provider.CallLog.Calls.NUMBER,
+                android.provider.CallLog.Calls.DATE,
+                android.provider.CallLog.Calls.TYPE
+            ),
+            "${android.provider.CallLog.Calls.TYPE}=? AND ${android.provider.CallLog.Calls.DATE}>=?",
+            arrayOf(
+                android.provider.CallLog.Calls.MISSED_TYPE.toString(),
+                (postTime - windowMs).toString()
+            ),
+            "${android.provider.CallLog.Calls.DATE} DESC"
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    } catch (e: Exception) {
+        Log.e("SPRIVO", "CallLog fallback 실패", e)
+        null
     }
 }
