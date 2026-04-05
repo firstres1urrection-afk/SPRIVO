@@ -34,8 +34,30 @@ class CallNotificationListener : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         val sourcePackage = sbn.packageName ?: ""
-        val title = sbn.notification.extras.getString("android.title") ?: ""
-        val text = sbn.notification.extras.getString("android.text") ?: ""
+        val extras = sbn.notification.extras ?: android.os.Bundle()
+
+        val title = extras.getCharSequence("android.title")?.toString().orEmpty()
+        val text = extras.getCharSequence("android.text")?.toString().orEmpty()
+        val subText = extras.getCharSequence("android.subText")?.toString().orEmpty()
+        val bigText = extras.getCharSequence("android.bigText")?.toString().orEmpty()
+        val tickerText = sbn.notification.tickerText?.toString().orEmpty()
+        val textLines = extras.getCharSequenceArray("android.textLines")?.joinToString(" ") { it.toString() }.orEmpty()
+
+        logNotificationPayload(
+            pkg = sourcePackage,
+            postTime = sbn.postTime,
+            title = title,
+            text = text,
+            subText = subText,
+            bigText = bigText,
+            tickerText = tickerText,
+            textLines = textLines,
+            extras = extras
+        )
+
+        val source = listOf(title, text, subText, bigText, tickerText, textLines)
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
 
         if (sourcePackage == applicationContext.packageName) {
             Log.d("SPRIVO", "자기 앱 알림 무시: $sourcePackage / $title / $text")
@@ -43,18 +65,18 @@ class CallNotificationListener : NotificationListenerService() {
         }
 
         if (!isAllowedCallApp(sourcePackage)) {
-            Log.d("SPRIVO", "전화 앱 아님, 무시: $sourcePackage / $title / $text")
+            Log.d("SPRIVO", "전화 앱 아님, 무시: $sourcePackage / $source")
             return
         }
 
-        Log.d("SPRIVO", "알림 감지: [$sourcePackage] $title / $text")
+        Log.d("SPRIVO", "알림 감지: [$sourcePackage] $source")
 
-        if (!isMissedCallNotification(title, text)) {
+        if (!isMissedCallNotification(source)) {
             Log.d("SPRIVO", "부재중 전화 알림 아님")
             return
         }
 
-        val phoneNumber = extractNumber("$title $text") ?: resolveLatestMissedNumberFromCallLog(sbn.postTime)
+        val phoneNumber = extractNumber(source) ?: resolveLatestMissedNumberFromCallLog(sbn.postTime)
         if (phoneNumber == null) {
             Log.d("SPRIVO", "번호 추출 실패")
             return
@@ -100,11 +122,37 @@ class CallNotificationListener : NotificationListenerService() {
                 packageName.contains("incallui", ignoreCase = true)
     }
 
-    private fun isMissedCallNotification(title: String, text: String): Boolean {
-        return title.contains("부재중") ||
-                text.contains("부재중") ||
-                title.contains("Missed", ignoreCase = true) ||
-                text.contains("Missed", ignoreCase = true)
+    private fun isMissedCallNotification(source: String): Boolean {
+        return source.contains("부재중") ||
+                source.contains("Missed", ignoreCase = true)
+    }
+
+    private fun logNotificationPayload(
+        pkg: String,
+        postTime: Long,
+        title: String,
+        text: String,
+        subText: String,
+        bigText: String,
+        tickerText: String,
+        textLines: String,
+        extras: android.os.Bundle
+    ) {
+        Log.d(
+            "SPRIVO",
+            """
+                Notification payload
+                pkg=$pkg
+                postTime=$postTime
+                title=$title
+                text=$text
+                subText=$subText
+                bigText=$bigText
+                tickerText=$tickerText
+                textLines=$textLines
+                extrasKeys=${extras.keySet()}
+            """.trimIndent()
+        )
     }
 
     private fun getMessageForMode(mode: String): String {
@@ -127,6 +175,11 @@ class CallNotificationListener : NotificationListenerService() {
     }
 
     private fun extractNumber(text: String): String? {
+        val sanitized = text
+            .replace(Regex("\\(\\d+\\)"), "")
+            .replace(Regex("[·•]"), " ")
+            .trim()
+
         val regexList = listOf(
             Regex("""\+82\s?10[- ]?\d{4}[- ]?\d{4}"""),
             Regex("""\+8210\d{8}"""),
@@ -134,11 +187,11 @@ class CallNotificationListener : NotificationListenerService() {
             Regex("""01[016789][- ]?\d{3,4}[- ]?\d{4}"""),
             Regex("""0\d{1,2}[- ]?\d{3,4}[- ]?\d{4}"""),
             Regex("""070[- ]?\d{3,4}[- ]?\d{4}"""),
-            Regex("""15\d{2}[- ]?\d{4}""")
+            Regex("""15\d{2}[- ]?\d{4}"""
         )
 
         for (regex in regexList) {
-            val match = regex.find(text)
+            val match = regex.find(sanitized)
             if (match != null) return match.value
         }
         return null
@@ -346,51 +399,51 @@ class CallNotificationListener : NotificationListenerService() {
     }
 
     private fun saveCallHistory(
-    context: Context,
-    phoneNumber: String,
-    mode: String,
-    status: String,
-    reason: String,
-    groupId: String,
-    logId: String,
-    providerStatus: String,
-    classification: String = "unknown",
-    classificationReason: String = "INITIAL_DEFAULT",
-    callbackNeeded: Boolean = true,
-    callbackStatus: String = "todo",
-    autoReplySuppressed: Boolean = false
-) {
-    val prefs = context.getSharedPreferences("sprivo", Context.MODE_PRIVATE)
-    val historyJson = prefs.getString("call_history", "[]") ?: "[]"
-    val historyArray = JSONArray(historyJson)
+        context: Context,
+        phoneNumber: String,
+        mode: String,
+        status: String,
+        reason: String,
+        groupId: String,
+        logId: String,
+        providerStatus: String,
+        classification: String = "unknown",
+        classificationReason: String = "INITIAL_DEFAULT",
+        callbackNeeded: Boolean = true,
+        callbackStatus: String = "todo",
+        autoReplySuppressed: Boolean = false
+    ) {
+        val prefs = context.getSharedPreferences("sprivo", Context.MODE_PRIVATE)
+        val historyJson = prefs.getString("call_history", "[]") ?: "[]"
+        val historyArray = JSONArray(historyJson)
 
-    val timeString =
-        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+        val timeString =
+            SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
-    val item = JSONObject().apply {
-        put("time", timeString)
-        put("phoneNumber", phoneNumber)
-        put("mode", mode)
-        put("status", status)
-        put("reason", reason)
-        put("groupId", groupId)
-        put("logId", logId)
-        put("providerStatus", providerStatus)
-        put("classification", classification)
-        put("classificationReason", classificationReason)
-        put("callbackNeeded", callbackNeeded)
-        put("callbackStatus", callbackStatus)
-        put("autoReplySuppressed", autoReplySuppressed)
+        val item = JSONObject().apply {
+            put("time", timeString)
+            put("phoneNumber", phoneNumber)
+            put("mode", mode)
+            put("status", status)
+            put("reason", reason)
+            put("groupId", groupId)
+            put("logId", logId)
+            put("providerStatus", providerStatus)
+            put("classification", classification)
+            put("classificationReason", classificationReason)
+            put("callbackNeeded", callbackNeeded)
+            put("callbackStatus", callbackStatus)
+            put("autoReplySuppressed", autoReplySuppressed)
+        }
+
+        historyArray.put(item)
+
+        while (historyArray.length() > 50) {
+            historyArray.remove(0)
+        }
+
+        prefs.edit().putString("call_history", historyArray.toString()).apply()
     }
-
-    historyArray.put(item)
-
-    while (historyArray.length() > 50) {
-        historyArray.remove(0)
-    }
-
-    prefs.edit().putString("call_history", historyArray.toString()).apply()
-}
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
