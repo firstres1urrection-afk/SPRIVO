@@ -187,7 +187,7 @@ class CallNotificationListener : NotificationListenerService() {
             Regex("""01[016789][- ]?\d{3,4}[- ]?\d{4}"""),
             Regex("""0\d{1,2}[- ]?\d{3,4}[- ]?\d{4}"""),
             Regex("""070[- ]?\d{3,4}[- ]?\d{4}"""),
-            Regex("""15\d{2}[- ]?\d{4}"""
+            Regex("""15\d{2}[- ]?\d{4}""")
         )
 
         for (regex in regexList) {
