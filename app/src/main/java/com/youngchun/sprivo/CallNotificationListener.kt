@@ -449,7 +449,7 @@ class CallNotificationListener : NotificationListenerService() {
     }
 }
 
-private fun resolveLatestMissedNumberFromCallLog(postTime: Long, windowMs: Long = 90_000L): String? {
+private fun Context.resolveLatestMissedNumberFromCallLog(postTime: Long, windowMs: Long = 90_000L): String? {
     if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CALL_LOG)
         != android.content.pm.PackageManager.PERMISSION_GRANTED
     ) {
