@@ -502,33 +502,73 @@ class CallNotificationListener : NotificationListenerService() {
     }
 }
 
-private fun Context.resolveLatestMissedNumberFromCallLog(postTime: Long, windowMs: Long = 90_000L): String? {
-    if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_CALL_LOG)
-        != android.content.pm.PackageManager.PERMISSION_GRANTED
+private fun Context.resolveLatestMissedNumberFromCallLog(
+    postTime: Long,
+    windowMs: Long = 90_000L
+): String? {
+    if (androidx.core.content.ContextCompat.checkSelfPermission(
+            this,
+            android.Manifest.permission.READ_CALL_LOG
+        ) != android.content.pm.PackageManager.PERMISSION_GRANTED
     ) {
         Log.d("SPRIVO", "READ_CALL_LOG 권한 없음 - CallLog fallback 불가")
         return null
     }
 
-    return try {
-        contentResolver.query(
-            android.provider.CallLog.Calls.CONTENT_URI,
-            arrayOf(
-                android.provider.CallLog.Calls.NUMBER,
-                android.provider.CallLog.Calls.DATE,
-                android.provider.CallLog.Calls.TYPE
-            ),
-            "${android.provider.CallLog.Calls.TYPE}=? AND ${android.provider.CallLog.Calls.DATE}>=?",
-            arrayOf(
-                android.provider.CallLog.Calls.MISSED_TYPE.toString(),
-                (postTime - windowMs).toString()
-            ),
-            "${android.provider.CallLog.Calls.DATE} DESC"
-        )?.use { cursor ->
-            if (cursor.moveToFirst()) cursor.getString(0) else null
+    val attemptDelaysMs = listOf(0L, 900L, 1800L)
+
+    attemptDelaysMs.forEachIndexed { attemptIndex, delayMs ->
+        if (delayMs > 0L) {
+            Log.d(
+                "SPRIVO",
+                "CallLog fallback retry attempt=${attemptIndex + 1} delay=${delayMs}ms"
+            )
+            try {
+                Thread.sleep(delayMs)
+            } catch (ignored: InterruptedException) {
+                Log.d("SPRIVO", "CallLog fallback interrupted")
+                return null
+            }
+        } else {
+            Log.d("SPRIVO", "CallLog fallback attempt=1 (immediate)")
         }
-    } catch (e: Exception) {
-        Log.e("SPRIVO", "CallLog fallback 실패", e)
-        null
+
+        val number = try {
+            contentResolver.query(
+                android.provider.CallLog.Calls.CONTENT_URI,
+                arrayOf(
+                    android.provider.CallLog.Calls.NUMBER,
+                    android.provider.CallLog.Calls.DATE,
+                    android.provider.CallLog.Calls.TYPE
+                ),
+                "${android.provider.CallLog.Calls.TYPE}=? AND ${android.provider.CallLog.Calls.DATE}>=?",
+                arrayOf(
+                    android.provider.CallLog.Calls.MISSED_TYPE.toString(),
+                    (postTime - windowMs).toString()
+                ),
+                "${android.provider.CallLog.Calls.DATE} DESC"
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) cursor.getString(0) else null
+            }
+        } catch (e: Exception) {
+            Log.e("SPRIVO", "CallLog fallback 실패", e)
+            null
+        }
+
+        if (number != null) {
+            Log.d(
+                "SPRIVO",
+                "CallLog fallback success attempt=${attemptIndex + 1}: $number"
+            )
+            return number
+        } else {
+            Log.d(
+                "SPRIVO",
+                "CallLog fallback attempt=${attemptIndex + 1} returned null"
+            )
+        }
     }
+
+    Log.d("SPRIVO", "CallLog fallback failed after ${attemptDelaysMs.size} attempts")
+    return null
 }
