@@ -71,7 +71,7 @@ class CallNotificationListener : NotificationListenerService() {
 
         Log.d("SPRIVO", "알림 감지: [$sourcePackage] $source")
 
-        if (!isMissedCallNotification(source)) {
+        if (!isMissedCallNotification(sbn, source)) {
             Log.d("SPRIVO", "부재중 전화 알림 아님")
             return
         }
@@ -122,9 +122,8 @@ class CallNotificationListener : NotificationListenerService() {
                 packageName.contains("incallui", ignoreCase = true)
     }
 
-    private fun isMissedCallNotification(source: String): Boolean {
-        return source.contains("부재중") ||
-                source.contains("Missed", ignoreCase = true)
+    private fun isMissedCallNotification(sbn: StatusBarNotification, source: String): Boolean {
+        val category = sbn.notification.category.orEmpty(); val categoryMatch = category == android.app.Notification.CATEGORY_MISSED_CALL; val textMatch = source.contains("\ubd80\uc7ac\uc911") || source.contains("Missed", ignoreCase = true); val result = categoryMatch || textMatch; val reason = when { categoryMatch -> "category"; textMatch -> "text"; else -> "none" }; Log.d("SPRIVO", "missed-call detection: category=$category result=$result reason=$reason"); return result
     }
 
     private fun logNotificationPayload(
