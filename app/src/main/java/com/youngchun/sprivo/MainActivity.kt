@@ -69,7 +69,15 @@ private const val REQUEST_CALL_LOG_PERMISSION = 1001
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)  if ( ContextCompat.checkSelfPermission( this, Manifest.permission.READ_CALL_LOG ) != PackageManager.PERMISSION_GRANTED ) { ActivityCompat.requestPermissions( this, arrayOf(Manifest.permission.READ_CALL_LOG), REQUEST_CALL_LOG_PERMISSION ) }  setContent { MaterialTheme { Surface( modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background ) { SprivoApp()
+        super.onCreate(savedInstanceState)
+
+        if ( ContextCompat.checkSelfPermission( this, Manifest.permission.READ_CALL_LOG ) != PackageManager.PERMISSION_GRANTED
+        ) {
+  ActivityCompat.requestPermissions( this, arrayOf(Manifest.permission.READ_CALL_LOG), REQUEST_CALL_LOG_PERMISSION)
+            }
+
+            setContent {
+            MaterialTheme { Surface( modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background ) { SprivoApp()
                 }
             }
         }
@@ -829,11 +837,4 @@ fun formatPhoneNumber(phoneNumber: String): String {
     }
 }
 
-/*
 
-알림 설정 열기
-전송 결과 알림이 안 뜨면 여기서 켜주세요.
-areNotificationsEnabled
-ACTION_APP_NOTIFICATION_SETTINGS
-ACTION_APPLICATION_DETAILS_SETTINGS
-*/
