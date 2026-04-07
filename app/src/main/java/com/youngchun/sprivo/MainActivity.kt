@@ -65,16 +65,11 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 
-private const val REQUEST_CALL_LOG_PERMISSION = 1001 class MainActivity : ComponentActivity() {
+private const val REQUEST_CALL_LOG_PERMISSION = 1001
+
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState); if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) { ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_CALL_LOG), REQUEST_CALL_LOG_PERMISSION) }
-        setContent {
-            MaterialTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    SprivoApp()
+        super.onCreate(savedInstanceState)  if ( ContextCompat.checkSelfPermission( this, Manifest.permission.READ_CALL_LOG ) != PackageManager.PERMISSION_GRANTED ) { ActivityCompat.requestPermissions( this, arrayOf(Manifest.permission.READ_CALL_LOG), REQUEST_CALL_LOG_PERMISSION ) }  setContent { MaterialTheme { Surface( modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background ) { SprivoApp()
                 }
             }
         }
