@@ -114,7 +114,7 @@ fun SprivoApp() {
 
     var selectedTab by remember { mutableStateOf("home") }
     var selectedMode by remember {
-        mutableStateOf(prefs.getString("mode", "해외 체류") ?: "해외 체류")
+        mutableStateOf(normalizeLegacyMode(prefs.getString("mode", "운전 중") ?: "운전 중"))
     }
     var isActive by remember {
         mutableStateOf(prefs.getBoolean("is_active", false))
@@ -138,12 +138,21 @@ fun SprivoApp() {
         )
     }
 
-    var meetingMessage by remember {
+    var onSiteMessage by remember {
         mutableStateOf(
             prefs.getString(
-                "message_meeting",
-                "현재 회의 중입니다. 종료 후 연락드리겠습니다."
-            ) ?: "현재 회의 중입니다. 종료 후 연락드리겠습니다."
+                "message_on_site",
+                "현재 현장 작업 중입니다. 문자로 연락 부탁드립니다."
+            ) ?: "현재 현장 작업 중입니다. 문자로 연락 부탁드립니다."
+        )
+    }
+
+    var customerBusyMessage by remember {
+        mutableStateOf(
+            prefs.getString(
+                "message_customer_busy",
+                "현재 고객 응대 중입니다. 종료 후 연락드리겠습니다."
+            ) ?: "현재 고객 응대 중입니다. 종료 후 연락드리겠습니다."
         )
     }
 
@@ -156,6 +165,20 @@ fun SprivoApp() {
     }
 
     LaunchedEffect(Unit) {
+        val storedMode = prefs.getString("mode", "운전 중") ?: "운전 중"
+        val migratedMode = normalizeLegacyMode(storedMode)
+        if (migratedMode != storedMode) {
+            prefs.edit().putString("mode", migratedMode).apply()
+            selectedMode = migratedMode
+        }
+
+        val savedCustomerBusy = prefs.getString("message_customer_busy", "")?.trim().orEmpty()
+        val legacyMeeting = prefs.getString("message_meeting", "")?.trim().orEmpty()
+        if (savedCustomerBusy.isBlank() && legacyMeeting.isNotBlank()) {
+            prefs.edit().putString("message_customer_busy", legacyMeeting).apply()
+            customerBusyMessage = legacyMeeting
+        }
+
         reloadHistory()
         isRefreshingPending = true
         refreshPendingHistory(context)
@@ -222,10 +245,15 @@ fun SprivoApp() {
                         drivingMessage = it
                         prefs.edit().putString("message_driving", it).apply()
                     },
-                    meetingMessage = meetingMessage,
-                    onMeetingMessageChange = {
-                        meetingMessage = it
-                        prefs.edit().putString("message_meeting", it).apply()
+                    onSiteMessage = onSiteMessage,
+                    onOnSiteMessageChange = {
+                        onSiteMessage = it
+                        prefs.edit().putString("message_on_site", it).apply()
+                    },
+                    customerBusyMessage = customerBusyMessage,
+                    onCustomerBusyMessageChange = {
+                        customerBusyMessage = it
+                        prefs.edit().putString("message_customer_busy", it).apply()
                     },
                     latestHistory = historyItems.lastOrNull(),
                     isRefreshingPending = isRefreshingPending,
@@ -275,8 +303,10 @@ fun HomeScreen(
     onOverseasMessageChange: (String) -> Unit,
     drivingMessage: String,
     onDrivingMessageChange: (String) -> Unit,
-    meetingMessage: String,
-    onMeetingMessageChange: (String) -> Unit,
+    onSiteMessage: String,
+    onOnSiteMessageChange: (String) -> Unit,
+    customerBusyMessage: String,
+    onCustomerBusyMessageChange: (String) -> Unit,
     latestHistory: CallHistoryItem?,
     isRefreshingPending: Boolean,
     onOpenNotificationAccess: () -> Unit,
@@ -306,7 +336,7 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            listOf("해외 체류", "운전 중", "회의 중").forEach { mode ->
+            listOf("운전 중", "현장 작업 중", "고객 응대 중").forEach { mode ->
                 ModeRow(
                     text = mode,
                     selected = selectedMode == mode,
@@ -326,15 +356,6 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
-                value = overseasMessage,
-                onValueChange = onOverseasMessageChange,
-                label = { Text("해외 체류 문구") },
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            OutlinedTextField(
                 value = drivingMessage,
                 onValueChange = onDrivingMessageChange,
                 label = { Text("운전 중 문구") },
@@ -344,9 +365,52 @@ fun HomeScreen(
             Spacer(modifier = Modifier.height(10.dp))
 
             OutlinedTextField(
-                value = meetingMessage,
-                onValueChange = onMeetingMessageChange,
-                label = { Text("회의 중 문구") },
+                value = onSiteMessage,
+                onValueChange = onOnSiteMessageChange,
+                label = { Text("현장 작업 중 문구") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedTextField(
+                value = customerBusyMessage,
+                onValueChange = onCustomerBusyMessageChange,
+                label = { Text("고객 응대 중 문구") },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+
+        CardBox {
+            Text(
+                text = "보조 모드",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            ModeRow(
+                text = "해외 체류",
+                selected = selectedMode == "해외 체류",
+                onClick = { onModeChange("해외 체류") }
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(
+                text = "한국 SIM 활성 + 로밍 사용 시에만 안정적으로 동작",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF666666)
+            )
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedTextField(
+                value = overseasMessage,
+                onValueChange = onOverseasMessageChange,
+                label = { Text("해외 체류 문구") },
                 modifier = Modifier.fillMaxWidth()
             )
         }
@@ -551,6 +615,13 @@ fun CardBox(content: @Composable ColumnScope.() -> Unit) {
             modifier = Modifier.padding(16.dp),
             content = content
         )
+    }
+}
+
+fun normalizeLegacyMode(mode: String): String {
+    return when (mode) {
+        "회의 중" -> "고객 응대 중"
+        else -> mode
     }
 }
 

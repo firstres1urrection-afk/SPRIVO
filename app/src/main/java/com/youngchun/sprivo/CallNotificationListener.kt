@@ -84,7 +84,7 @@ class CallNotificationListener : NotificationListenerService() {
 
         val prefs = getSharedPreferences("sprivo", MODE_PRIVATE)
         val isActive = prefs.getBoolean("is_active", false)
-        val mode = prefs.getString("mode", "해외 체류") ?: "해외 체류"
+        val mode = normalizeLegacyModeForDispatch(prefs.getString("mode", "운전 중") ?: "운전 중")
 
         if (!isActive) {
             Log.d("SPRIVO", "자동응답 OFF 상태라 전송 안 함")
@@ -106,6 +106,13 @@ class CallNotificationListener : NotificationListenerService() {
             message = message,
             mode = mode
         )
+    }
+
+    private fun normalizeLegacyModeForDispatch(mode: String): String {
+        return when (mode) {
+            "회의 중" -> "고객 응대 중"
+            else -> mode
+        }
     }
 
     private fun isAllowedCallApp(packageName: String): Boolean {
@@ -157,20 +164,35 @@ class CallNotificationListener : NotificationListenerService() {
     private fun getMessageForMode(mode: String): String {
         val prefs = getSharedPreferences("sprivo", MODE_PRIVATE)
 
-        val defaultMessage = when (mode) {
+        val normalizedMode = normalizeLegacyModeForDispatch(mode)
+
+        val defaultMessage = when (normalizedMode) {
             "운전 중" -> "현재 운전 중입니다. 문자로 연락 부탁드립니다."
-            "회의 중" -> "현재 회의 중입니다. 종료 후 연락드리겠습니다."
+            "현장 작업 중" -> "현재 현장 작업 중입니다. 문자로 연락 부탁드립니다."
+            "고객 응대 중" -> "현재 고객 응대 중입니다. 종료 후 연락드리겠습니다."
             else -> "현재 해외 체류 중입니다. 문자로 연락 부탁드립니다."
         }
 
-        val messageKey = when (mode) {
+        val messageKey = when (normalizedMode) {
             "운전 중" -> "message_driving"
-            "회의 중" -> "message_meeting"
+            "현장 작업 중" -> "message_on_site"
+            "고객 응대 중" -> "message_customer_busy"
             else -> "message_overseas"
         }
 
         val savedMessage = prefs.getString(messageKey, defaultMessage)?.trim().orEmpty()
-        return if (savedMessage.isBlank()) defaultMessage else savedMessage
+        val migratedLegacyMessage = if (normalizedMode == "고객 응대 중" && savedMessage.isBlank()) {
+            prefs.getString("message_meeting", "")?.trim().orEmpty()
+        } else {
+            ""
+        }
+
+        if (migratedLegacyMessage.isNotBlank()) {
+            prefs.edit().putString("message_customer_busy", migratedLegacyMessage).apply()
+        }
+
+        val resolvedMessage = if (savedMessage.isBlank()) migratedLegacyMessage else savedMessage
+        return if (resolvedMessage.isBlank()) defaultMessage else resolvedMessage
     }
 
     private fun extractNumber(text: String): String? {
